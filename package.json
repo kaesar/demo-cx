@@ -1,0 +1,38 @@
+{
+  "name": "demo-cx",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc --noEmit",
+    "watch": "tsc -w --noEmit",
+    "test": "jest",
+    "cdk": "cd cdk && cdk",
+    "synth": "cd cdk && cdk synth",
+    "synth:connect": "cd cdk && cdk synth CxConnectStack",
+    "synth:serverless": "cd cdk && cdk synth CxDataStack CxComputeStack",
+    "deploy:serverless:dev": "cd cdk && cdk deploy CxDataStack CxComputeStack --require-approval never",
+    "deploy:connect": "cd cdk && cdk deploy CxConnectStack --require-approval never"
+  },
+  "devDependencies": {
+    "@swc/core": "^1.15.0",
+    "@swc/jest": "^0.2.39",
+    "@types/aws-lambda": "^8.10.145",
+    "@types/jest": "^30",
+    "@types/node": "^24.10.1",
+    "aws-cdk": "2.1144.0",
+    "esbuild": "^0.28.2",
+    "jest": "^30",
+    "tsx": "^4.23.0",
+    "typescript": "~5.9.3"
+  },
+  "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.879.0",
+    "@aws-sdk/client-dynamodb": "^3.879.0",
+    "@aws-sdk/lib-dynamodb": "^3.879.0",
+    "aws-cdk-lib": "^2.271.0",
+    "constructs": "^10.5.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

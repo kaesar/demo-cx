@@ -1,0 +1,65 @@
+{
+  "Version": "2019-10-30",
+  "StartAction": "Saludo",
+  "Metadata": {
+    "entryPointPosition": { "x": 40, "y": 40 },
+    "ActionMetadata": {
+      "Saludo": { "position": { "x": 80, "y": 80 } },
+      "PedirDocumento": { "position": { "x": 280, "y": 80 } },
+      "LookupPaciente": { "position": { "x": 480, "y": 80 } },
+      "MenuPrincipal": { "position": { "x": 680, "y": 80 } },
+      "ColaAgente": { "position": { "x": 880, "y": 80 } },
+      "Despedida": { "position": { "x": 680, "y": 280 } }
+    }
+  },
+  "Actions": [
+    {
+      "Identifier": "Saludo",
+      "Type": "MessageParticipant",
+      "Transitions": { "NextAction": "PedirDocumento", "Errors": [{ "NextAction": "Despedida", "ErrorType": "NoMatchingError" }] },
+      "Parameters": { "Text": "Bienvenido a la línea de agendamiento de citas. " }
+    },
+    {
+      "Identifier": "PedirDocumento",
+      "Type": "GetParticipantInput",
+      "Transitions": { "NextAction": "LookupPaciente", "Errors": [{ "NextAction": "Despedida", "ErrorType": "NoMatchingError" }] },
+      "Parameters": {
+        "Text": "Por favor digite su número de documento seguido de la tecla numeral. ",
+        "InputType": "DTMF",
+        "DTMFConfiguration": { "InputDurationInSeconds": 10 }
+      }
+    },
+    {
+      "Identifier": "LookupPaciente",
+      "Type": "InvokeLambdaFunction",
+      "Transitions": { "NextAction": "MenuPrincipal", "Errors": [{ "NextAction": "MenuPrincipal", "ErrorType": "NoMatchingError" }] },
+      "Parameters": {
+        "LambdaFunctionARN": "ARN_DE_PATIENT_LOOKUP_SE_CONFIGURA_AL_DESPLEGAR",
+        "InvocationTimeLimitSeconds": "8",
+        "LambdaInputParameters": { "documentId": "$.External.DTMFInput" }
+      }
+    },
+    {
+      "Identifier": "MenuPrincipal",
+      "Type": "GetParticipantInput",
+      "Transitions": { "NextAction": "Despedida", "Conditions": [{ "NextAction": "ColaAgente", "Condition": { "Operator": "Equals", "Operands": ["0"] } }], "Errors": [{ "NextAction": "Despedida", "ErrorType": "NoMatchingError" }] },
+      "Parameters": {
+        "Text": "Marque 1 para agendar, 2 para consultar o modificar, 3 para cancelar, o 0 para hablar con un agente. ",
+        "InputType": "DTMF",
+        "DTMFConfiguration": { "InputDurationInSeconds": 8 }
+      }
+    },
+    {
+      "Identifier": "ColaAgente",
+      "Type": "TransferToQueue",
+      "Transitions": { "NextAction": "Despedida", "Errors": [{ "NextAction": "Despedida", "ErrorType": "NoMatchingError" }] },
+      "Parameters": {}
+    },
+    {
+      "Identifier": "Despedida",
+      "Type": "DisconnectParticipant",
+      "Transitions": {},
+      "Parameters": {}
+    }
+  ]
+}

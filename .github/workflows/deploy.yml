@@ -27,7 +27,7 @@ jobs:
       - run: npm test
       - run: npm run synth:serverless
 
-  deploy-serverless-dev:
+  deploy-services:
     needs: build
     runs-on: ubuntu-latest
     environment: dev
@@ -37,16 +37,21 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-      # OIDC: sin claves largas. Requiere el rol `github-cx-deployer`
+      
+      - name: Debug OIDC Token Sub
+        run: |
+          TOKEN=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r '.value')
+          echo "=== EL SUB EXACTO ENVIADO POR GITHUB ES: ==="
+          jq -R 'split(".") | .[1] | @base64d | fromjson | .sub' <<< "$TOKEN"
+
+      # OIDC: sin claves largas. Requiere el rol `role-github`
       # (ver README "Despliegue continuo") cuyo ARN está en el secret
       # AWS_DEPLOY_ROLE_ARN.
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          role-session-name: deploy-from-ga
       - run: npm ci
       - run: npm run deploy:serverless:dev
-
-  # El stack Connect NO se despliega en este pipeline: la telefonía se
-  # gestiona aparte (`npx cdk deploy CxConnectStack -c connectInstanceArn=...`)
-  # para no tocar colas/flows en cada push del backend.

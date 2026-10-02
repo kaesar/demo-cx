@@ -6,6 +6,7 @@
     "build": "tsc --noEmit",
     "watch": "tsc -w --noEmit",
     "test": "jest",
+    "smoke": "node scripts/smoke.mjs",
     "cdk": "cd cdk && cdk",
     "synth": "cd cdk && cdk synth",
     "synth:connect": "cd cdk && cdk synth CxConnectStack",
@@ -14,6 +15,9 @@
     "deploy:connect": "cd cdk && cdk deploy CxConnectStack --require-approval never"
   },
   "devDependencies": {
+    "@aws-sdk/client-eventbridge": "^3.1145.0",
+    "@aws-sdk/client-lambda": "^3.1145.0",
+    "@aws-sdk/client-s3": "^3.1145.0",
     "@swc/core": "^1.15.0",
     "@swc/jest": "^0.2.39",
     "@types/aws-lambda": "^8.10.145",
@@ -33,6 +37,6 @@
     "constructs": "^10.5.0"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   }
 }

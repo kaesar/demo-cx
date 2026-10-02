@@ -51,6 +51,7 @@ flowchart LR
 │   ├── patient-lookup/index.ts   # Invocada desde el flow (lookup en DynamoDB)
 │   └── post-contact/index.ts     # EventBridge → persiste interacción + resumen Bedrock
 ├── .github/workflows/            # CI/CD (OIDC, solo stacks serverless)
+├── scripts/smoke.mjs             # Smoke test post-despliegue (Node nativo, contra AWS real)
 ├── package.json / tsconfig.json / jest.config.js   # Toolchain compartida (raíz)
 └── README.md
 ```
@@ -127,12 +128,12 @@ cat > trust.json <<'EOF'
 }
 EOF
 sed -i '' "s/<ACCOUNT_ID>/$ACCOUNT_ID/" trust.json  # en Linux: sed -i
-aws iam create-role --role-name github-cx-deployer \
+aws iam create-role --role-name role-github \
   --assume-role-policy-document file://trust.json \
   --description "Deploy CDK demo-cx desde GitHub Actions via OIDC"
 
 # 3. Permisos. Vía rápida para cuenta dev/sandbox:
-aws iam attach-role-policy --role-name github-cx-deployer \
+aws iam attach-role-policy --role-name role-github \
   --policy-arn arn:aws:iam::aws:policy/AdministratorAccess
 # Para mínimo privilegio, sustituye la managed policy por una policy propia
 # acotada a: cloudformation:*, iam:PassRole/GetRole/CreateRole sobre roles
@@ -141,8 +142,7 @@ aws iam attach-role-policy --role-name github-cx-deployer \
 
 # 4. Bootstrap CDK (una vez por cuenta/región) y secret con el ARN del rol
 npx cdk bootstrap aws://$ACCOUNT_ID/us-east-1
-gh secret set AWS_DEPLOY_ROLE_ARN \
-  --body "arn:aws:iam::$ACCOUNT_ID:role/github-cx-deployer"
+gh secret set AWS_DEPLOY_ROLE_ARN --body "arn:aws:iam::$ACCOUNT_ID:role/role-github"
 ```
 
 > El stack Connect **no** se despliega en este pipeline: la telefonía se gestiona

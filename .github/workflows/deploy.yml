@@ -42,12 +42,12 @@ jobs:
         run: |
           TOKEN=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
             "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r '.value')
-          echo "=== EL SUB EXACTO ENVIADO POR GITHUB ES: ==="
+          echo "=== THE EXACT SUB SENT BY GITHUB IS: ==="
           jq -R 'split(".") | .[1] | @base64d | fromjson | .sub' <<< "$TOKEN"
 
-      # OIDC: sin claves largas. Requiere el rol `role-github`
-      # (ver README "Despliegue continuo") cuyo ARN está en el secret
-      # AWS_DEPLOY_ROLE_ARN.
+      # OIDC: no long-lived keys. Requires the `role-github` role
+      # (see README "Continuous deployment") whose ARN lives in the
+      # AWS_DEPLOY_ROLE_ARN secret.
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ${{ env.AWS_REGION }}

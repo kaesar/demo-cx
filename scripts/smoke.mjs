@@ -1,22 +1,22 @@
 #!/usr/bin/env node
 /**
- * Smoke test post-despliegue (corre contra AWS real, no hace synth).
+ * Post-deploy smoke test (runs against real AWS, no synth).
  *
- * Verifica el wiring de la infra serverless:
- *  1. DynamoDB MedicalAppointments existe y está ACTIVE.
- *  2. Lambda cx-patient-lookup existe y responde al evento Connect
- *     con el contrato de attributes (lookupStatus found|not_found).
- *  3. Lambda cx-post-contact existe.
- *  4. Regla EventBridge cx-contact-ended está ENABLED.
- *  5. Bucket de grabaciones existe (si se informa RECORDINGS_BUCKET).
+ * Verifies the serverless infra wiring:
+ *  1. DynamoDB MedicalAppointments exists and is ACTIVE.
+ *  2. cx-patient-lookup Lambda exists and answers the Connect event
+ *     with the attributes contract (lookupStatus found|not_found).
+ *  3. cx-post-contact Lambda exists.
+ *  4. cx-contact-ended EventBridge rule is ENABLED.
+ *  5. Recordings bucket exists (when RECORDINGS_BUCKET is provided).
  *
- * Uso (Node >= 20, sin transpilado ni bundle: ESM nativo):
+ * Usage (Node >= 22, no transpile or bundle: native ESM):
  *   npm run smoke
- *   TABLE_NAME=MedicalAppointments RECORDINGS_BUCKET=<nombre> npm run smoke
+ *   TABLE_NAME=MedicalAppointments RECORDINGS_BUCKET=<name> npm run smoke
  *
- * Requiere credenciales AWS con lectura (dynamodb:DescribeTable,
+ * Requires read AWS credentials (dynamodb:DescribeTable,
  * lambda:GetFunction/InvokeFunction, events:DescribeRule, s3:ListBucket).
- * No escribe nada: la invocación de lookup es de solo lectura.
+ * Writes nothing: the lookup invocation is read-only.
  */
 import { DynamoDBClient, DescribeTableCommand } from '@aws-sdk/client-dynamodb';
 import { LambdaClient, GetFunctionCommand, InvokeCommand } from '@aws-sdk/client-lambda';
@@ -47,7 +47,7 @@ async function checkTable() {
 
 async function checkLookup() {
   await lambda.send(new GetFunctionCommand({ FunctionName: 'cx-patient-lookup' }));
-  // Evento sintético con el formato que envía el bloque Invoke del flow.
+  // Synthetic event in the shape sent by the flow's Invoke block.
   const event = {
     Details: {
       ContactData: { ContactId: 'smoke-test', Attributes: {} },
@@ -62,9 +62,9 @@ async function checkLookup() {
   }
   const payload = JSON.parse(Buffer.from(res.Payload ?? []).toString());
   if (!['found', 'not_found'].includes(payload.lookupStatus ?? '')) {
-    throw new Error(`contrato roto: lookupStatus=${payload.lookupStatus}`);
+    throw new Error(`broken contract: lookupStatus=${payload.lookupStatus}`);
   }
-  ok('Lambda cx-patient-lookup', `contrato ok, lookupStatus=${payload.lookupStatus}`);
+  ok('Lambda cx-patient-lookup', `contract ok, lookupStatus=${payload.lookupStatus}`);
 }
 
 async function checkPostContact() {
@@ -81,7 +81,7 @@ async function checkRule() {
 
 async function checkBucket() {
   if (!recordingsBucket) {
-    console.log('SKIP  S3 recordings (informa RECORDINGS_BUCKET para verificarlo)');
+    console.log('SKIP  S3 recordings (set RECORDINGS_BUCKET to verify it)');
     return;
   }
   await s3.send(new HeadBucketCommand({ Bucket: recordingsBucket }));
@@ -89,7 +89,7 @@ async function checkBucket() {
 }
 
 async function main() {
-  console.log(`Smoke test demo-cx en ${region}\n`);
+  console.log(`Smoke test demo-cx in ${region}\n`);
   for (const [name, fn] of [
     ['table', checkTable],
     ['lookup', checkLookup],
@@ -104,10 +104,10 @@ async function main() {
     }
   }
   if (failures > 0) {
-    console.error(`\n${failures} check(s) fallaron`);
+    console.error(`\n${failures} check(s) failed`);
     process.exit(1);
   }
-  console.log('\nTodo OK');
+  console.log('\nAll OK');
 }
 
 await main();

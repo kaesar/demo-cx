@@ -4,9 +4,9 @@ import { CxDataStack } from '../lib/data-stack';
 import { CxComputeStack } from '../lib/compute-stack';
 
 /**
- * App CDK serverless (Data + Compute). Sin dependencias de Connect:
- * sintetiza y despliega sin ningún contexto adicional.
- * Uso: `npm run synth:serverless`, `npm run deploy:serverless:dev`.
+ * Serverless CDK app (Data + Compute). No Connect dependencies:
+ * synthesizes and deploys with no extra context.
+ * Usage: `npm run synth:serverless`, `npm run deploy:serverless:dev`.
  */
 const app = new cdk.App();
 
@@ -17,7 +17,7 @@ const env: cdk.Environment = {
 
 const data = new CxDataStack(app, 'CxDataStack', {
   env,
-  description: 'Demo-CX serverless: DynamoDB + S3 grabaciones.',
+  description: 'Demo-CX serverless: DynamoDB + S3 recordings.',
 });
 
 new CxComputeStack(app, 'CxComputeStack', {

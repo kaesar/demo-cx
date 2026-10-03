@@ -6,32 +6,32 @@ import { Construct } from 'constructs';
 
 export interface CxConnectStackProps extends cdk.StackProps {
   /**
-   * ARN de una instancia Amazon Connect ya existente (creada por consola,
-   * enfoque híbrido). Si se omite, el stack crea una instancia mínima de
-   * demostración con Contact Lens activado.
+   * ARN of an existing Amazon Connect instance (created via console,
+   * hybrid approach). If omitted, the stack creates a minimal demo
+   * instance with Contact Lens enabled.
    */
   readonly instanceArn?: string;
   /**
-   * ARN de la Lambda `cx-patient-lookup` (stack serverless, ya desplegado).
-   * Obligatorio: Connect valida el flow al crearlo y rechaza ARNs de
-   * ejemplo o inexistentes (InvalidContactFlowException). Se pasa por
-   * contexto: `-c patientLookupArn=arn:aws:lambda:...`.
+   * ARN of the `cx-patient-lookup` Lambda (serverless stack, already deployed).
+   * Required: Connect validates the flow on creation and rejects sample
+   * or nonexistent ARNs (InvalidContactFlowException). Passed via
+   * context: `-c patientLookupArn=arn:aws:lambda:...`.
    */
   readonly patientLookupArn: string;
 }
 
 /**
- * Stack INDEPENDIENTE de telefonía.
+ * INDEPENDENT telephony stack.
  *
- * No exporta nada que el backend serverless necesite: el acoplamiento
- * flow <-> Lambda se resuelve en tiempo de configuración (ARN de la Lambda
- * pegado en el bloque Invoke del flow), no vía referencias CloudFormation
- * entre stacks. Así `CxConnectStack` se despliega (o se deja sin desplegar)
- * sin tocar `CxDataStack`/`CxComputeStack`.
+ * It exports nothing the serverless backend needs: the flow <-> Lambda
+ * coupling is resolved at configuration time (Lambda ARN pasted into the
+ * flow's Invoke block), not via CloudFormation references between stacks.
+ * This way `CxConnectStack` deploys (or stays undeployed) without
+ * touching `CxDataStack`/`CxComputeStack`.
  *
- * Nota: Connect en CDK solo ofrece constructs L1 (`Cfn*`). Usuarios
- * (`CfnUser` exige SecurityProfileArns) y números de teléfono (disponibilidad
- * por país) se gestionan por consola. Ver Amazon-Connect.md.
+ * Note: Connect on CDK only offers L1 constructs (`Cfn*`). Users
+ * (`CfnUser` requires SecurityProfileArns) and phone numbers (availability
+ * varies by country) are managed via console. See Amazon-Connect.md.
  */
 export class CxConnectStack extends cdk.Stack {
   public readonly instanceArn: string;
@@ -41,8 +41,8 @@ export class CxConnectStack extends cdk.Stack {
 
     if (!props.patientLookupArn || props.patientLookupArn.includes('__')) {
       throw new Error(
-        'CxConnectStack requiere patientLookupArn (ARN real de cx-patient-lookup). ' +
-          'Despliega serverless primero y pasa -c patientLookupArn=arn:aws:lambda:...',
+        'CxConnectStack requires patientLookupArn (real ARN of cx-patient-lookup). ' +
+          'Deploy serverless first and pass -c patientLookupArn=arn:aws:lambda:...',
       );
     }
 
@@ -75,8 +75,8 @@ export class CxConnectStack extends cdk.Stack {
     });
 
     const flowPath = path.join(__dirname, '..', 'contact-flows', 'agendamiento-v1.json');
-    // El JSON versionado trae tokens que se resuelven aquí con recursos
-    // reales (la API de Connect valida el contenido al crear el flow).
+    // The versioned JSON carries tokens resolved here with real
+    // resources (the Connect API validates content on flow creation).
     const flowContent = fs
       .readFileSync(flowPath, 'utf8')
       .replace(/__PATIENT_LOOKUP_ARN__/g, props.patientLookupArn)
@@ -91,7 +91,7 @@ export class CxConnectStack extends cdk.Stack {
     new connect.CfnRoutingProfile(this, 'Routing', {
       instanceArn,
       name: 'AgentesAgendamiento',
-      description: 'Voz, una llamada a la vez',
+      description: 'Voice, one call at a time',
       defaultOutboundQueueArn: queue.attrQueueArn,
       mediaConcurrencies: [{ channel: 'VOICE', concurrency: 1 }],
     });

@@ -3,18 +3,18 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 
 /**
- * Lambda `patient-lookup` (Fase 2).
+ * `patient-lookup` Lambda.
  *
- * Invocada desde el bloque "Invoke AWS Lambda function" del Contact Flow.
- * Entrada (evento Connect): Details.ContactData.Attributes + Details.Parameters
- * con `documentId` (DTMF) o `phone` (ANI). Salida: mapa plano string->string
- * que Connect fusiona como Contact Attributes:
+ * Invoked from the Contact Flow's "Invoke AWS Lambda function" block.
+ * Input (Connect event): Details.ContactData.Attributes + Details.Parameters
+ * with `documentId` (DTMF) or `phone` (ANI). Output: flat string->string map
+ * that Connect merges as Contact Attributes:
  *   patientName, patientType (nuevo|recurrente|prioritario), lookupStatus
- *   (found|not_found), nextAppointment (ISO o ""), appointmentsCount.
+ *   (found|not_found), nextAppointment (ISO or ""), appointmentsCount.
  *
- * Contrato DynamoDB (single-table, ver DataStack):
+ * DynamoDB contract (single-table, see DataStack):
  *   Get  pk=PATIENT#<doc> sk=PROFILE
- *   Query pk=PATIENT#<doc> sk begins_with APPOINTMENT# (filtro estado=programada)
+ *   Query pk=PATIENT#<doc> sk begins_with APPOINTMENT# (filter estado=programada)
  */
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}), {
@@ -47,9 +47,9 @@ export const handler: Handler<ConnectLambdaEvent, Record<string, string>> = asyn
     return { lookupStatus: 'not_found', patientName: '', patientType: 'nuevo', nextAppointment: '', appointmentsCount: '0' };
   };
 
-  // Identificador canónico: documento si viene por DTMF; si no, teléfono.
-  // (Fase avanzada: índice secundario por teléfono vía GSI; hoy se deriva
-  // la PK como PATIENT#<phone> para no bloquear el flujo.)
+  // Canonical identifier: document when provided via DTMF, phone otherwise.
+  // (Future enhancement: secondary index by phone via GSI; for now the PK
+  // is derived as PATIENT#<phone> so the flow is never blocked.)
   const key = documentId || phone.replace(/\D/g, '');
   if (!key) return fail('missing_identifier');
 

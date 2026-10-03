@@ -4,8 +4,8 @@ import * as s3 from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 
 /**
- * Stack serverless de DATOS. Sin VPC (DynamoDB y S3 son servicios gestionados
- * con endpoints públicos; el acceso se controla con IAM least-privilege).
+ * Serverless DATA stack. No VPC (DynamoDB and S3 are managed services
+ * with public endpoints; access is controlled with least-privilege IAM).
  */
 export class CxDataStack extends cdk.Stack {
   public readonly table: dynamodb.Table;
@@ -14,7 +14,7 @@ export class CxDataStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // Modelo single-table (PLAN.md §5):
+    // Single-table model (PLAN.md §5):
     //   PK = PATIENT#<documentId>
     //   SK = PROFILE | APPOINTMENT#<date>#<id> | INTERACTION#<contactId>
     this.table = new dynamodb.Table(this, 'MedicalAppointments', {
@@ -26,7 +26,7 @@ export class CxDataStack extends cdk.Stack {
       pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
     });
 
-    // Acceso por estado de cita para listados operativos (GSI1: estado -> cita).
+    // Lookup by appointment status for operational listings (GSI1: estado -> cita).
     this.table.addGlobalSecondaryIndex({
       indexName: 'gsi1-estado',
       partitionKey: { name: 'gsi1pk', type: dynamodb.AttributeType.STRING },

@@ -1,28 +1,28 @@
 # Demo-CX: Amazon Connect + Serverless + CDK
 
-> *Experiencia del cliente en agendamiento de citas médicas*
+> *Customer experience for medical appointment scheduling*
 
-Demostracion de uso de **Amazon Connect** con componentes **Serverless** (como Lambdas) enfocado en experiencia del cliente (CX) para agendamiento de citas medicas.
+Demo of **Amazon Connect** with **Serverless** components (such as Lambdas) focused on customer experience (CX) for medical appointment scheduling.
 
-## Arquitectura
+## Architecture
 
 ```mermaid
 flowchart LR
-    Paciente(["Paciente<br/>(llamada)"]) --> Flow["Connect flow<br/>AgendamientoMedico"]
+    Patient(["Patient<br/>(call)"]) --> Flow["Connect flow<br/>AgendamientoMedico"]
     Flow --> Lookup["Lambda<br/>cx-patient-lookup"]
     Lookup <--> DDB[("DynamoDB<br/>MedicalAppointments")]
-    Flow --> Cola["Cola<br/>AgendamientoMedico"]
+    Flow --> Queue["Queue<br/>AgendamientoMedico"]
     Flow -- "DISCONNECTED / ENDED" --> EB["EventBridge<br/>cx-contact-ended"]
     EB --> Post["Lambda<br/>cx-post-contact"]
     Post --> DDB
-    Post <--> Bedrock["Bedrock<br/>Nova (resumen)"]
-    Flow --> S3[("S3<br/>grabaciones")]
+    Post <--> Bedrock["Bedrock<br/>Nova (summary)"]
+    Flow --> S3[("S3<br/>recordings")]
     GH["GitHub Actions<br/>(OIDC)"] -.-> Data["CxDataStack"]
     GH -.-> Compute["CxComputeStack"]
 
     subgraph Connect["CxConnectStack"]
         Flow
-        Cola
+        Queue
     end
     subgraph Serverless["Serverless"]
         Lookup
@@ -33,26 +33,26 @@ flowchart LR
     end
 ```
 
-## Flow `AgendamientoMedico` (`cdk/contact-flows/agendamiento-v1.json`)
+## `AgendamientoMedico` flow (`cdk/contact-flows/agendamiento-v1.json`)
 
 ```
-0. Saludo (mensaje de bienvenida) → 1.1
-1. Identificación del paciente
-   1.1. PedirDocumento_in (DTMF, máx. 20) → 1.2
+0. Saludo (welcome message) → 1.1
+1. Patient identification
+   1.1. PedirDocumento_in (DTMF, max 20) → 1.2
    1.2. SetDocAttr (documentId = $.StoredCustomerInput) → 1.3
-   1.3. LookupPaciente (Lambda cx-patient-lookup) → 2.1
-2. Menú principal
+   1.3. LookupPaciente (cx-patient-lookup Lambda) → 2.1
+2. Main menu
    2.1. MenuPrincipal_in (1/2/3/0) → 2.2
    2.2. ComparaOpcion ($.StoredCustomerInput)
         2.2.1. =1 → MsgAgendar → 3.3
         2.2.2. =2 → MsgConsultar → 3.3
         2.2.3. =3 → MsgCancelar → 3.3
         2.2.4. =0 → SetCola → ColaAgente → 3.3
-        2.2.5. Por defecto → 3.3
-3. Cierre
-   3.1. Mensajes informativos (2.2.1–2.2.3)
-   3.2. Transferencia a AgendamientoMedico (2.2.4)
-   3.3. Despedida (desconecta; dispara el post-contacto)
+        2.2.5. Default → 3.3
+3. Closing
+   3.1. Informational messages (2.2.1–2.2.3)
+   3.2. Transfer to AgendamientoMedico (2.2.4)
+   3.3. Despedida (disconnects; triggers post-contact)
 ```
 
 ```mermaid
@@ -66,77 +66,77 @@ flowchart TD
     Compara -- "=2" --> MsgC["3.1. MsgConsultar"]
     Compara -- "=3" --> MsgX["3.1. MsgCancelar"]
     Compara -- "=0" --> SetCola["3.2. SetCola"]
-    SetCola --> Cola["3.2. ColaAgente"]
-    MsgA --> Fin["3.3. Despedida"]
-    MsgC --> Fin
-    MsgX --> Fin
-    Cola --> Fin
-    Compara -- "por defecto" --> Fin
+    SetCola --> Queue["3.2. ColaAgente"]
+    MsgA --> End["3.3. Despedida"]
+    MsgC --> End
+    MsgX --> End
+    Queue --> End
+    Compara -- "default" --> End
 ```
 
-## Estructura
+## Structure
 
 ```
   _____
 ./ cx /
-├── cdk/                          # Infraestructura como código (CDK TypeScript)
-│   ├── bin/connect.ts            # App telefonía: solo CxConnectStack (-c patientLookupArn)
-│   ├── bin/serverless.ts         # App serverless: CxDataStack + CxComputeStack (default)
+├── cdk/                          # Infrastructure as code (TypeScript CDK)
+│   ├── bin/connect.ts            # Telephony app: CxConnectStack only (-c patientLookupArn)
+│   ├── bin/serverless.ts         # Serverless app: CxDataStack + CxComputeStack (default)
 │   ├── lib/
-│   │   ├── connect-stack.ts      # Telefonía: horario, cola, flow, routing
-│   │   ├── data-stack.ts         # Datos: DynamoDB + S3 grabaciones
-│   │   └── compute-stack.ts      # Cómputo: Lambdas + EventBridge + Bedrock
-│   ├── contact-flows/            # Flows versionados (JSON exportado de consola)
+│   │   ├── connect-stack.ts      # Telephony: hours, queue, flow, routing
+│   │   ├── data-stack.ts         # Data: DynamoDB + S3 recordings
+│   │   └── compute-stack.ts      # Compute: Lambdas + EventBridge + Bedrock
+│   ├── contact-flows/            # Versioned flows (console-exported JSON)
 │   │   └── agendamiento-v1.json
-│   ├── test/cx.test.ts           # Tests de synth (sin VPC, sin acoples)
-│   ├── cdk.json                  # App + feature flags (el CLI se ejecuta desde aquí)
-│   └── cdk.out/                  # Output generado del synth (ignorado en git)
-├── srv/                          # Componentes Serverless (srv): Código de funciones Lambda
-│   ├── patient-lookup/index.ts   # Invocada desde el flow (lookup en DynamoDB)
-│   └── post-contact/index.ts     # EventBridge → persiste interacción + resumen Bedrock
-├── .github/workflows/            # CI/CD (OIDC, solo stacks serverless)
-├── scripts/smoke.mjs             # Smoke test post-despliegue (Node nativo, contra AWS real)
-├── package.json / tsconfig.json / jest.config.js   # Toolchain compartida (raíz)
+│   ├── test/cx.test.ts           # Synth tests (no VPC, no coupling)
+│   ├── cdk.json                  # App + feature flags (CLI runs from here)
+│   └── cdk.out/                  # Generated synth output (git-ignored)
+├── srv/                          # Serverless components (srv): Lambda function code
+│   ├── patient-lookup/index.ts   # Invoked from the flow (DynamoDB lookup)
+│   └── post-contact/index.ts     # EventBridge → persists interaction + Bedrock summary
+├── .github/workflows/            # CI/CD (OIDC, serverless stacks only)
+├── scripts/smoke.mjs             # Post-deploy smoke test (native Node, against real AWS)
+├── package.json / tsconfig.json / jest.config.js   # Shared toolchain (root)
 └── README.md
 ```
 
-## Separación Connect / Serverless
+## Connect / Serverless separation
 
-| App | Stacks | Despliegue |
+| App | Stacks | Deploy |
 |-----|--------|------------|
-| Telefonía | `CxConnectStack` (instancia opcional, horario, cola, flow, routing) | `npm run deploy:connect` o con instancia existente: `npx cdk deploy CxConnectStack -c connectInstanceArn=arn:...` |
+| Telephony | `CxConnectStack` (optional instance, hours, queue, flow, routing) | `npm run deploy:connect` or with an existing instance: `npx cdk deploy CxConnectStack -c connectInstanceArn=arn:...` |
 | Serverless | `CxDataStack` (DynamoDB + S3) + `CxComputeStack` (2 Lambdas + EventBridge + Bedrock) | `npm run deploy:serverless:dev` |
 
-Los stacks serverless **no referencian** al stack Connect: el vínculo
-flow ↔ Lambda se resuelve en synth sustituyendo `__PATIENT_LOOKUP_ARN__`
-por el ARN pasado con `-c patientLookupArn=...`. Así el backend itera
-sin tocar telefonía.
+The serverless stacks do **not reference** the Connect stack: the flow ↔ Lambda
+link is resolved at synth by substituting `__PATIENT_LOOKUP_ARN__`
+with the ARN passed via `-c patientLookupArn=...`. This way the backend iterates
+without touching telephony.
 
-**Sin VPC por diseño.** DynamoDB, S3, Bedrock y EventBridge se consumen por
-endpoints públicos con IAM de mínimo privilegio.
+**No VPC by design.** DynamoDB, S3, Bedrock and EventBridge are consumed over
+public endpoints with least-privilege IAM.
 
-## Requisitos
+## Requirements
 
-Node >= 22, AWS CLI v2, `us-east-1`, créditos controlados (números locales).
+Node >= 22, AWS CLI v2, `us-east-1`, controlled credits (local numbers).
 
-## Uso local
+## Local usage
 
 ```bash
 npm ci
 npm run build      # tsc --noEmit
-npm test           # jest (synth de los 3 stacks)
-npm run synth      # o synth:connect / synth:serverless
+npm test           # jest (synth of the 3 stacks)
+npm run synth      # or synth:connect / synth:serverless
 ```
 
-## Flujo de trabajo sugerido
+## Suggested workflow
 
-1. Consola: reclamar número y crear usuario de prueba (la instancia `cx-medica`
-   la crea el stack, o pasa la tuya con `-c connectInstanceArn=<arn>`).
-2. `npm run deploy:serverless:dev` (serverless primero) y anota el ARN:
+1. Console: claim a number and create a test user (the `cx-medica` instance
+   is created by the stack, or pass your own with `-c connectInstanceArn=<arn>`).
+2. `npm run deploy:serverless:dev` (serverless first) and note the ARN:
    `aws lambda get-function --function-name cx-patient-lookup --query Configuration.FunctionArn --output text`
-3. `npm run deploy:connect -- -c patientLookupArn=<arn del paso 2>`
-   (el flow se valida en la API: sin ARN real falla con InvalidContactFlowException).
-4. Crear usuarios (admin + agente) y validar acceso en la `InstanceAccessUrl`:
+3. `npm run deploy:connect -- -c patientLookupArn=<arn from step 2>`
+   (the flow is validated by the API: no real ARN fails with InvalidContactFlowException).
+4. Create users (admin + agent) and validate access at the stack's `InstanceAccessUrl`:
    ```bash
    export INSTANCE_ID=$(aws cloudformation describe-stacks --stack-name CxConnectStack \
      --query "Stacks[0].Outputs[?OutputKey=='InstanceArn'].OutputValue" --output text | cut -d/ -f2)
@@ -147,17 +147,17 @@ npm run synth      # o synth:connect / synth:serverless
    export ROUTING_PROFILE=$(aws connect list-routing-profiles --instance-id $INSTANCE_ID \
      --query "RoutingProfileSummaryList[?starts_with(Name,'Agentes')].Id" --output text)
    aws connect create-user --instance-id $INSTANCE_ID --username admin \
-     --password '<temporal>' --identity-info "FirstName=Cx,LastName=Admin,Email=<tu-email>" \
+     --password '<temporary>' --identity-info "FirstName=Cx,LastName=Admin,Email=<your-email>" \
      --phone-config "PhoneType=SOFT_PHONE,AutoAccept=false,AfterContactWorkTimeLimit=0" \
      --security-profile-ids $ADMIN_PROFILE --routing-profile-id $ROUTING_PROFILE
    aws connect create-user --instance-id $INSTANCE_ID --username agente1 \
-     --password '<temporal>' --identity-info "FirstName=Agente,LastName=Uno,Email=<tu-email>" \
+      --password '<temporary>' --identity-info "FirstName=Sam,LastName=Agent,Email=<your-email>" \
      --phone-config "PhoneType=SOFT_PHONE,AutoAccept=false,AfterContactWorkTimeLimit=30" \
      --security-profile-ids $AGENT_PROFILE --routing-profile-id $ROUTING_PROFILE
    ```
-   En web: consola Connect → *Users* → mismo resultado (perfil Agent + routing
-   `AgentesAgendamiento`, softphone). El agente abre el CCP y se pone *Available*.
-5. Llamada de prueba sin número reclamado (Connect llama a tu móvil por el flow):
+   On the web: Connect console → *Users* → same result (Agent profile + `AgentesAgendamiento`
+   routing, softphone). The agent opens the CCP and goes *Available*.
+5. Test call with no claimed number (Connect calls your mobile through the flow):
    ```bash
    export FLOW_ID=$(aws connect list-contact-flows --instance-id $INSTANCE_ID \
      --query "ContactFlowSummaryList[?Name=='AgendamientoMedico'].Id" --output text)
@@ -165,35 +165,35 @@ npm run synth      # o synth:connect / synth:serverless
      --query "Stacks[0].Outputs[?OutputKey=='QueueArn'].OutputValue" --output text | awk -F/ '{print $NF}')
    aws connect start-outbound-voice-contact --instance-id $INSTANCE_ID \
      --contact-flow-id $FLOW_ID --queue-id $QUEUE_ID \
-     --destination-phone-number '+34TU_MOVIL'
+     --destination-phone-number '+34YOUR_MOBILE'
    ```
-   Marca 1/2/3 (mensajes → cuelga); el 0 transfiere a la cola (requiere agente
-   *Available*). Verificación: ítem `INTERACTION#<contactId>` en DynamoDB +
-   logs de las Lambdas en CloudWatch.
+   Press 1/2/3 (messages → hangs up); 0 transfers to the queue (requires an
+   *Available* agent). Verification: `INTERACTION#<contactId>` item in DynamoDB +
+   Lambda logs in CloudWatch.
 
-## Despliegue continuo (GitHub Actions + OIDC)
+## Continuous deployment (GitHub Actions + OIDC)
 
-El workflow [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) despliega
-solo los stacks serverless (`CxDataStack` + `CxComputeStack`) en cada push a `main`,
-asumiendo un rol IAM vía OIDC (sin claves de acceso largas). Configuración inicial
-con AWS CLI (una vez por cuenta):
+The [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) workflow deploys
+only the serverless stacks (`CxDataStack` + `CxComputeStack`) on every push to `main`,
+assuming an IAM role via OIDC (no long-lived keys). Initial setup
+with AWS CLI (once per account):
 
 ```bash
 export AWS_REGION=us-east-1
 export ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
-# 1. Proveedor OIDC (una vez por cuenta)
+# 1. OIDC provider (once per account)
 aws iam create-open-id-connect-provider \
   --url https://token.actions.githubusercontent.com \
   --client-id-list sts.amazonaws.com \
   --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1
 
-# 2. IDs del repo (el `sub` OIDC exige formato inmutable con IDs)
+# 2. Repo IDs (OIDC `sub` requires the immutable format with IDs)
 curl -s https://api.github.com/repos/kaesar/demo-cx | jq '{owner_id: .owner.id, repository_id: .id}'
 export OWNER_ID=$(curl -s https://api.github.com/repos/kaesar/demo-cx | jq -r .owner.id)
 export REPOSITORY_ID=$(curl -s https://api.github.com/repos/kaesar/demo-cx | jq -r .id)
 
-# 3. Trust policy (acepta `sub` clásico e inmutable)
+# 3. Trust policy (accepts classic and immutable `sub`)
 jq -n \
   --arg account "$ACCOUNT_ID" \
   --arg sub_classic "repo:kaesar/demo-cx:*" \
@@ -213,18 +213,18 @@ jq -n \
 
 aws iam create-role --role-name role-github \
   --assume-role-policy-document file://trust.json \
-  --description "Deploy CDK demo-cx desde GitHub Actions via OIDC"
+  --description "Deploy CDK demo-cx from GitHub Actions via OIDC"
 
-# 3. Permisos (mínimo privilegio: asume los roles del bootstrap).
+# 3. Permissions (least privilege: assumes the bootstrap roles).
 jq -n --arg account "$ACCOUNT_ID" \
   '{"Version":"2012-10-17","Statement":[{"Effect":"Allow", "Action":["sts:AssumeRole","iam:PassRole"],"Resource":"arn:aws:iam::\($account):role/cdk-hnb659fds-*-\($account)-*"}]}' > inline-policy.json
 
 aws iam put-role-policy --role-name role-github \
   --policy-name cdk-deploy --policy-document file://inline-policy.json
 
-# 4. Bootstrap + secret con el ARN del rol
+# 4. Bootstrap + secret with the role ARN
 npx cdk bootstrap aws://$ACCOUNT_ID/us-east-1
 ```
 
-> Para secretos puedes usar: `gh secret set AWS_DEPLOY_ROLE_ARN --body "arn:aws:iam::$ACCOUNT_ID:role/role-github"`  
-> El stack Connect **no** se despliega en este pipeline: la telefonía se gestiona aparte con `npm run deploy:connect -- -c patientLookupArn=<arn>`.
+> For secrets you can use: `gh secret set AWS_DEPLOY_ROLE_ARN --body "arn:aws:iam::$ACCOUNT_ID:role/role-github"`  
+> The Connect stack is **not** deployed by this pipeline: telephony is managed separately with `npm run deploy:connect -- -c patientLookupArn=<arn>`.

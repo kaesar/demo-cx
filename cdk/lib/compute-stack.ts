@@ -14,19 +14,19 @@ export interface CxComputeStackProps extends cdk.StackProps {
   readonly table: dynamodb.Table;
   readonly recordingsBucket: s3.Bucket;
   /**
-   * Modelo Bedrock para resúmenes (Fase 6). Por defecto Nova Micro/Lite
-   * en us-east-1. Se puede sobreescribir por contexto `bedrockModelId`.
+   * Bedrock model for summaries. Nova Micro/Lite in us-east-1 by default.
+   * Overridable via `bedrockModelId` context.
    */
   readonly bedrockModelId?: string;
 }
 
 /**
- * Stack serverless de CÓMPUTO. Sin VPC por diseño: ninguna Lambda necesita
- * acceso a recursos privados (DynamoDB, S3, Bedrock y EventBridge se invocan
- * por endpoints públicos con IAM). Si en una fase avanzada hiciera falta VPC
- * (p. ej. integración con un HIS hospitalario privado), se añadirá un
- * CxNetworkStack y estas funciones pasarán a `vpc` + endpoints de interfaz
- * para DynamoDB/S3/Bedrock. Ese cambio es aditivo y no toca Connect.
+ * Serverless COMPUTE stack. No VPC by design: no Lambda needs access to
+ * private resources (DynamoDB, S3, Bedrock and EventBridge are invoked
+ * over public endpoints with IAM). If an advanced phase ever required a VPC
+ * (e.g. integration with a private hospital HIS), a CxNetworkStack would be
+ * added and these functions would move to `vpc` + interface endpoints for
+ * DynamoDB/S3/Bedrock. That change is additive and never touches Connect.
  */
 export class CxComputeStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: CxComputeStackProps) {
@@ -37,7 +37,7 @@ export class CxComputeStack extends cdk.Stack {
       (this.node.tryGetContext('bedrockModelId') as string | undefined) ??
       'amazon.nova-micro-v1:0';
 
-    // --- Lambda invocada desde el Contact Flow (Fase 2) ---
+    // --- Lambda invoked from the Contact Flow ---
     const lookupLogs = new logs.LogGroup(this, 'PatientLookupLogs', {
       retention: logs.RetentionDays.ONE_MONTH,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
@@ -52,14 +52,14 @@ export class CxComputeStack extends cdk.Stack {
       environment: { TABLE_NAME: props.table.tableName },
     });
     props.table.grantReadData(lookup);
-    // Permite que Amazon Connect invoque la función desde un bloque
-    // "Invoke AWS Lambda function" del flow.
+    // Lets Amazon Connect invoke the function from a flow's
+    // "Invoke AWS Lambda function" block.
     lookup.addPermission('AllowConnectInvoke', {
       principal: new iam.ServicePrincipal('connect.amazonaws.com'),
       action: 'lambda:InvokeFunction',
     });
 
-    // --- Lambda post-contacto (Fases 3 y 6) ---
+    // --- Post-contact Lambda ---
     const postContactLogs = new logs.LogGroup(this, 'PostContactLogs', {
       retention: logs.RetentionDays.ONE_MONTH,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
@@ -90,9 +90,9 @@ export class CxComputeStack extends cdk.Stack {
       }),
     );
 
-    // EventBridge: eventos de fin de contacto de Connect -> post-contacto.
-    // El InstanceId concreto se filtra por contexto `connectInstanceId`;
-    // sin él, la regla escucha todas las instancias de la cuenta/región.
+    // EventBridge: Connect end-of-contact events -> post-contact.
+    // A concrete InstanceId is filtered via `connectInstanceId` context;
+    // without it, the rule listens to every instance in the account/region.
     const connectInstanceId = this.node.tryGetContext('connectInstanceId') as string | undefined;
     new events.Rule(this, 'ContactEndedRule', {
       ruleName: 'cx-contact-ended',

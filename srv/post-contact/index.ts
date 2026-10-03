@@ -4,18 +4,18 @@ import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 
 /**
- * Lambda `post-contact` (Fases 3 y 6).
+ * `post-contact` Lambda.
  *
- * Trigger: regla EventBridge sobre `Amazon Connect Contact Event`
- * (DISCONNECTED/ENDED). Persiste el resultado en la single-table como
+ * Trigger: EventBridge rule on `Amazon Connect Contact Event`
+ * (DISCONNECTED/ENDED). Persists the outcome to the single-table as
  *   pk=PATIENT#<doc|unknown> sk=INTERACTION#<contactId>
- * y, si hay transcript disponible en el evento, invoca Bedrock (Nova
- * Micro/Lite por defecto) para generar el resumen estructurado
+ * and, when a transcript is available in the event, calls Bedrock (Nova
+ * Micro/Lite by default) to generate the structured summary
  * {motivo, acciones, sentimiento, proximosPasos, alertas}.
  *
- * Diseño defensivo: si Bedrock falla o no hay transcript, la interacción se
- * guarda igualmente con `summaryStatus: skipped|error` y se reintenta en la
- * fase 6 con reprocesado manual. Nunca se pierde el registro de la llamada.
+ * Defensive design: if Bedrock fails or there is no transcript, the
+ * interaction is still stored with `summaryStatus: skipped|error` and can
+ * be reprocessed manually later. The call record is never lost.
  */
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}), {

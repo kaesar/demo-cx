@@ -11,6 +11,13 @@ export interface CxConnectStackProps extends cdk.StackProps {
    * demostración con Contact Lens activado.
    */
   readonly instanceArn?: string;
+  /**
+   * ARN de la Lambda `cx-patient-lookup` (stack serverless, ya desplegado).
+   * Obligatorio: Connect valida el flow al crearlo y rechaza ARNs de
+   * ejemplo o inexistentes (InvalidContactFlowException). Se pasa por
+   * contexto: `-c patientLookupArn=arn:aws:lambda:...`.
+   */
+  readonly patientLookupArn: string;
 }
 
 /**
@@ -29,8 +36,15 @@ export interface CxConnectStackProps extends cdk.StackProps {
 export class CxConnectStack extends cdk.Stack {
   public readonly instanceArn: string;
 
-  constructor(scope: Construct, id: string, props: CxConnectStackProps = {}) {
+  constructor(scope: Construct, id: string, props: CxConnectStackProps) {
     super(scope, id, props);
+
+    if (!props.patientLookupArn || props.patientLookupArn.includes('__')) {
+      throw new Error(
+        'CxConnectStack requiere patientLookupArn (ARN real de cx-patient-lookup). ' +
+          'Despliega serverless primero y pasa -c patientLookupArn=arn:aws:lambda:...',
+      );
+    }
 
     let instanceArn = props.instanceArn;
     if (!instanceArn) {
@@ -61,11 +75,17 @@ export class CxConnectStack extends cdk.Stack {
     });
 
     const flowPath = path.join(__dirname, '..', 'contact-flows', 'agendamiento-v1.json');
+    // El JSON versionado trae tokens que se resuelven aquí con recursos
+    // reales (la API de Connect valida el contenido al crear el flow).
+    const flowContent = fs
+      .readFileSync(flowPath, 'utf8')
+      .replace(/__PATIENT_LOOKUP_ARN__/g, props.patientLookupArn)
+      .replace(/__QUEUE_ARN__/g, queue.attrQueueArn);
     new connect.CfnContactFlow(this, 'AgendamientoFlow', {
       instanceArn,
       name: 'AgendamientoMedico',
       type: 'CONTACT_FLOW',
-      content: fs.readFileSync(flowPath, 'utf8'),
+      content: flowContent,
     });
 
     new connect.CfnRoutingProfile(this, 'Routing', {

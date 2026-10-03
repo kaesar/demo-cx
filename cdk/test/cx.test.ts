@@ -5,9 +5,11 @@ import { CxDataStack } from '../lib/data-stack';
 import { CxComputeStack } from '../lib/compute-stack';
 
 describe('Demo-CX stacks sintetizan sin VPC y sin acoplamientos cruzados', () => {
+  const LOOKUP_ARN = 'arn:aws:lambda:us-east-1:123456789012:function:cx-patient-lookup';
+
   test('ConnectStack crea cola, horario, flow y routing (sin instancia externa)', () => {
     const app = new cdk.App();
-    const stack = new CxConnectStack(app, 'TConnect');
+    const stack = new CxConnectStack(app, 'TConnect', { patientLookupArn: LOOKUP_ARN });
     const t = Template.fromStack(stack);
     t.resourceCountIs('AWS::Connect::HoursOfOperation', 1);
     t.resourceCountIs('AWS::Connect::Queue', 1);
@@ -15,14 +17,27 @@ describe('Demo-CX stacks sintetizan sin VPC y sin acoplamientos cruzados', () =>
     t.resourceCountIs('AWS::Connect::RoutingProfile', 1);
     // Por defecto crea la instancia demo (híbrido: con ARN externo no la crea).
     t.resourceCountIs('AWS::Connect::Instance', 1);
+    // El flow lleva el ARN real sustituido (sin tokens pendientes).
+    const templateJson = JSON.stringify(t.toJSON());
+    expect(templateJson).toContain(LOOKUP_ARN);
+    expect(templateJson).not.toContain('__PATIENT_LOOKUP_ARN__');
+    expect(templateJson).not.toContain('__QUEUE_ARN__');
   });
 
   test('ConnectStack con ARN existente no crea instancia', () => {
     const app = new cdk.App();
     const stack = new CxConnectStack(app, 'TConnectImport', {
       instanceArn: 'arn:aws:connect:us-east-1:123456789012:instance/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+      patientLookupArn: LOOKUP_ARN,
     });
     Template.fromStack(stack).resourceCountIs('AWS::Connect::Instance', 0);
+  });
+
+  test('ConnectStack sin lookup ARN falla en synth con mensaje claro', () => {
+    const app = new cdk.App();
+    expect(() => new CxConnectStack(app, 'TConnectFail', { patientLookupArn: '' })).toThrow(
+      /patientLookupArn/,
+    );
   });
 
   test('Serverless: tabla single-table + bucket + 2 lambdas + regla EventBridge', () => {

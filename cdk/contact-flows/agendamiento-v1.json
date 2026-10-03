@@ -2,64 +2,355 @@
   "Version": "2019-10-30",
   "StartAction": "Saludo",
   "Metadata": {
-    "entryPointPosition": { "x": 40, "y": 40 },
+    "entryPointPosition": {
+      "x": -180,
+      "y": -152
+    },
     "ActionMetadata": {
-      "Saludo": { "position": { "x": 80, "y": 80 } },
-      "PedirDocumento": { "position": { "x": 280, "y": 80 } },
-      "LookupPaciente": { "position": { "x": 480, "y": 80 } },
-      "MenuPrincipal": { "position": { "x": 680, "y": 80 } },
-      "ColaAgente": { "position": { "x": 880, "y": 80 } },
-      "Despedida": { "position": { "x": 680, "y": 280 } }
-    }
+      "Saludo": {
+        "position": {
+          "x": -77.6,
+          "y": -152.8
+        }
+      },
+      "LookupPaciente": {
+        "position": {
+          "x": 720,
+          "y": -76
+        },
+        "parameters": {
+          "LambdaFunctionARN": {
+            "displayName": "__PATIENT_LOOKUP_ARN__"
+          }
+        },
+        "dynamicMetadata": {}
+      },
+      "MsgAgendar": {
+        "position": {
+          "x": 1520.8,
+          "y": 182.4
+        }
+      },
+      "MsgConsultar": {
+        "position": {
+          "x": 1524,
+          "y": 344
+        }
+      },
+      "MsgCancelar": {
+        "position": {
+          "x": 1465.6,
+          "y": 6.4
+        }
+      },
+      "SetCola": {
+        "position": {
+          "x": 1517.6,
+          "y": 510.4
+        }
+      },
+      "ColaAgente": {
+        "position": {
+          "x": 1784.8,
+          "y": 580.8
+        }
+      },
+      "PedirDocumento_in": {
+        "position": {
+          "x": 156,
+          "y": -151.2
+        },
+        "conditionMetadata": [],
+        "countryCodePrefix": "+1"
+      },
+      "SetDocAttr": {
+        "position": {
+          "x": 458.4,
+          "y": -80.8
+        },
+        "dynamicParams": []
+      },
+      "ComparaOpcion": {
+        "position": {
+          "x": 1214.4,
+          "y": 238.4
+        },
+        "conditionMetadata": [
+          {
+            "id": "ad93cf81-c960-4b6e-99a4-e23542390a40",
+            "operator": {
+              "name": "Equals",
+              "value": "Equals",
+              "shortDisplay": "="
+            },
+            "value": "1"
+          },
+          {
+            "id": "76f9a3f8-7d79-47d7-8212-69c310936629",
+            "operator": {
+              "name": "Equals",
+              "value": "Equals",
+              "shortDisplay": "="
+            },
+            "value": "2"
+          },
+          {
+            "id": "093c5656-ca2a-4c16-8876-e4b3e9fcd89a",
+            "operator": {
+              "name": "Equals",
+              "value": "Equals",
+              "shortDisplay": "="
+            },
+            "value": "3"
+          },
+          {
+            "id": "698ec476-ed8b-4581-beb0-a64a35de7fac",
+            "operator": {
+              "name": "Equals",
+              "value": "Equals",
+              "shortDisplay": "="
+            },
+            "value": "0"
+          }
+        ]
+      },
+      "MenuPrincipal_in": {
+        "position": {
+          "x": 972,
+          "y": -5.6
+        },
+        "conditionMetadata": [],
+        "countryCodePrefix": "+1"
+      },
+      "Despedida": {
+        "position": {
+          "x": 1243.2,
+          "y": -195.2
+        }
+      }
+    },
+    "Annotations": [],
+    "name": "AgendamientoMedico",
+    "description": "",
+    "type": "contactFlow",
+    "status": "PUBLISHED",
+    "hash": {}
   },
   "Actions": [
     {
+      "Parameters": {
+        "Text": "Bienvenido a la linea de agendamiento de citas."
+      },
       "Identifier": "Saludo",
       "Type": "MessageParticipant",
-      "Transitions": { "NextAction": "PedirDocumento", "Errors": [{ "NextAction": "Despedida", "ErrorType": "NoMatchingError" }] },
-      "Parameters": { "Text": "Bienvenido a la línea de agendamiento de citas. " }
-    },
-    {
-      "Identifier": "PedirDocumento",
-      "Type": "GetParticipantInput",
-      "Transitions": { "NextAction": "LookupPaciente", "Errors": [{ "NextAction": "Despedida", "ErrorType": "NoMatchingError" }] },
-      "Parameters": {
-        "Text": "Por favor digite su número de documento seguido de la tecla numeral. ",
-        "InputType": "DTMF",
-        "DTMFConfiguration": { "InputDurationInSeconds": 10 }
+      "Transitions": {
+        "NextAction": "PedirDocumento_in"
       }
     },
     {
+      "Parameters": {
+        "LambdaFunctionARN": "__PATIENT_LOOKUP_ARN__",
+        "InvocationTimeLimitSeconds": "8"
+      },
       "Identifier": "LookupPaciente",
       "Type": "InvokeLambdaFunction",
-      "Transitions": { "NextAction": "MenuPrincipal", "Errors": [{ "NextAction": "MenuPrincipal", "ErrorType": "NoMatchingError" }] },
-      "Parameters": {
-        "LambdaFunctionARN": "ARN_DE_PATIENT_LOOKUP_SE_CONFIGURA_AL_DESPLEGAR",
-        "InvocationTimeLimitSeconds": "8",
-        "LambdaInputParameters": { "documentId": "$.External.DTMFInput" }
+      "Transitions": {
+        "NextAction": "MenuPrincipal_in",
+        "Errors": [
+          {
+            "NextAction": "MenuPrincipal_in",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
       }
     },
     {
-      "Identifier": "MenuPrincipal",
-      "Type": "GetParticipantInput",
-      "Transitions": { "NextAction": "Despedida", "Conditions": [{ "NextAction": "ColaAgente", "Condition": { "Operator": "Equals", "Operands": ["0"] } }], "Errors": [{ "NextAction": "Despedida", "ErrorType": "NoMatchingError" }] },
       "Parameters": {
-        "Text": "Marque 1 para agendar, 2 para consultar o modificar, 3 para cancelar, o 0 para hablar con un agente. ",
-        "InputType": "DTMF",
-        "DTMFConfiguration": { "InputDurationInSeconds": 8 }
+        "Text": "Opcion agendar. Un agente continuara su solicitud."
+      },
+      "Identifier": "MsgAgendar",
+      "Type": "MessageParticipant",
+      "Transitions": {
+        "NextAction": "Despedida"
       }
     },
     {
+      "Parameters": {
+        "Text": "Opcion consultar. Un agente continuara su solicitud."
+      },
+      "Identifier": "MsgConsultar",
+      "Type": "MessageParticipant",
+      "Transitions": {
+        "NextAction": "Despedida"
+      }
+    },
+    {
+      "Parameters": {
+        "Text": "Opcion cancelar. Un agente continuara su solicitud."
+      },
+      "Identifier": "MsgCancelar",
+      "Type": "MessageParticipant",
+      "Transitions": {
+        "NextAction": "Despedida"
+      }
+    },
+    {
+      "Parameters": {
+        "QueueId": "__QUEUE_ARN__"
+      },
+      "Identifier": "SetCola",
+      "Type": "UpdateContactTargetQueue",
+      "Transitions": {
+        "NextAction": "ColaAgente",
+        "Errors": [
+          {
+            "NextAction": "Despedida",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {},
       "Identifier": "ColaAgente",
-      "Type": "TransferToQueue",
-      "Transitions": { "NextAction": "Despedida", "Errors": [{ "NextAction": "Despedida", "ErrorType": "NoMatchingError" }] },
-      "Parameters": {}
+      "Type": "TransferContactToQueue",
+      "Transitions": {
+        "NextAction": "Despedida",
+        "Errors": [
+          {
+            "NextAction": "Despedida",
+            "ErrorType": "QueueAtCapacity"
+          },
+          {
+            "NextAction": "Despedida",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
     },
     {
+      "Parameters": {
+        "StoreInput": "True",
+        "InputTimeLimitSeconds": "10",
+        "Text": "Por favor digite su numero de documento seguido de la tecla numeral.",
+        "InputValidation": {
+          "CustomValidation": {
+            "MaximumLength": "20"
+          }
+        }
+      },
+      "Identifier": "PedirDocumento_in",
+      "Type": "GetParticipantInput",
+      "Transitions": {
+        "NextAction": "SetDocAttr",
+        "Errors": [
+          {
+            "NextAction": "Despedida",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {
+        "Attributes": {
+          "documentId": "$.StoredCustomerInput"
+        }
+      },
+      "Identifier": "SetDocAttr",
+      "Type": "UpdateContactAttributes",
+      "Transitions": {
+        "NextAction": "LookupPaciente",
+        "Errors": [
+          {
+            "NextAction": "Despedida",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {
+        "ComparisonValue": "$.StoredCustomerInput"
+      },
+      "Identifier": "ComparaOpcion",
+      "Type": "Compare",
+      "Transitions": {
+        "NextAction": "Despedida",
+        "Conditions": [
+          {
+            "NextAction": "MsgAgendar",
+            "Condition": {
+              "Operator": "Equals",
+              "Operands": [
+                "1"
+              ]
+            }
+          },
+          {
+            "NextAction": "MsgConsultar",
+            "Condition": {
+              "Operator": "Equals",
+              "Operands": [
+                "2"
+              ]
+            }
+          },
+          {
+            "NextAction": "MsgCancelar",
+            "Condition": {
+              "Operator": "Equals",
+              "Operands": [
+                "3"
+              ]
+            }
+          },
+          {
+            "NextAction": "SetCola",
+            "Condition": {
+              "Operator": "Equals",
+              "Operands": [
+                "0"
+              ]
+            }
+          }
+        ],
+        "Errors": [
+          {
+            "NextAction": "Despedida",
+            "ErrorType": "NoMatchingCondition"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {
+        "StoreInput": "True",
+        "InputTimeLimitSeconds": "8",
+        "Text": "Marque 1 para agendar, 2 para consultar o modificar, 3 para cancelar, o 0 para hablar con un agente.",
+        "InputValidation": {
+          "CustomValidation": {
+            "MaximumLength": "5"
+          }
+        }
+      },
+      "Identifier": "MenuPrincipal_in",
+      "Type": "GetParticipantInput",
+      "Transitions": {
+        "NextAction": "ComparaOpcion",
+        "Errors": [
+          {
+            "NextAction": "Despedida",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {},
       "Identifier": "Despedida",
       "Type": "DisconnectParticipant",
-      "Transitions": {},
-      "Parameters": {}
+      "Transitions": {}
     }
   ]
 }
